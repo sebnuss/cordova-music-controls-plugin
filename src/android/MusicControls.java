@@ -40,10 +40,11 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class MusicControls extends CordovaPlugin {
+	private static final int NOTIFICATION_ID = 7824;
+
 	private MusicControlsBroadcastReceiver mMessageReceiver;
 	private MusicControlsNotification notification;
 	private MediaSessionCompat mediaSessionCompat;
-	private final int notificationID=7824;
 	private AudioManager mAudioManager;
 	private PendingIntent mediaButtonPendingIntent;
 	private boolean mediaButtonAccess=true;
@@ -91,11 +92,11 @@ public class MusicControls extends CordovaPlugin {
 	public void initialize(CordovaInterface cordova, CordovaWebView webView) {
 		super.initialize(cordova, webView);
 		final Activity activity = this.cordova.getActivity();
-		final Context context=activity.getApplicationContext();
+		final Context context = activity.getApplicationContext();
 
     		this.cordovaActivity = activity;
 
-		this.notification = new MusicControlsNotification(activity,this.notificationID);
+		this.notification = new MusicControlsNotification(activity,this.NOTIFICATION_ID);
 		this.mMessageReceiver = new MusicControlsBroadcastReceiver(this);
 		this.registerBroadcaster(mMessageReceiver);
 
@@ -129,20 +130,18 @@ public class MusicControls extends CordovaPlugin {
 			}
 		};
 		Intent startServiceIntent = new Intent(activity,MusicControlsNotificationKiller.class);
-		startServiceIntent.putExtra("notificationID",this.notificationID);
+		startServiceIntent.putExtra("NOTIFICATION_ID",this.NOTIFICATION_ID);
 		activity.bindService(startServiceIntent, mConnection, Context.BIND_AUTO_CREATE);
 	}
 
 	@Override
 	public boolean execute(final String action, final JSONArray args, final CallbackContext callbackContext) throws JSONException {
-		final Context context=this.cordova.getActivity().getApplicationContext();
-		final Activity activity=this.cordova.getActivity();
+		final Context context = this.cordova.getActivity().getApplicationContext();
+		final Activity activity = this.cordova.getActivity();
 
-		
 		if (action.equals("create")) {
 			final MusicControlsInfos infos = new MusicControlsInfos(args);
-			 final MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
-
+			final MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
 
 			this.cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
