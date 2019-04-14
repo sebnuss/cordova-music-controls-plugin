@@ -10,8 +10,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.net.Uri;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
@@ -31,13 +29,6 @@ import android.os.Build;
 import android.R;
 import android.content.BroadcastReceiver;
 import android.media.AudioManager;
-
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 
 public class MusicControls extends CordovaPlugin {
 	private static final int NOTIFICATION_ID = 7824;
@@ -94,20 +85,16 @@ public class MusicControls extends CordovaPlugin {
 		final Activity activity = this.cordova.getActivity();
 		final Context context = activity.getApplicationContext();
 
-    		this.cordovaActivity = activity;
+		this.cordovaActivity = activity;
 
 		this.notification = new MusicControlsNotification(activity,this.NOTIFICATION_ID);
 		this.mMessageReceiver = new MusicControlsBroadcastReceiver(this);
 		this.registerBroadcaster(mMessageReceiver);
 
-		
 		this.mediaSessionCompat = new MediaSessionCompat(context, "cordova-music-controls-media-session", null, this.mediaButtonPendingIntent);
 		this.mediaSessionCompat.setFlags(MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS | MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS);
-
-
 		setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
 		this.mediaSessionCompat.setActive(true);
-
 		this.mediaSessionCompat.setCallback(this.mMediaSessionCallback);
 		
 		// Register media (headset) button event receiver
@@ -141,12 +128,12 @@ public class MusicControls extends CordovaPlugin {
 
 		if (action.equals("create")) {
 			final MusicControlsInfos infos = new MusicControlsInfos(args);
-			final MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
-
+			
 			this.cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
 					notification.updateNotification(infos);
-					
+
+					MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
 					// track title
 					metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_TITLE, infos.track);
 					// artists
@@ -154,7 +141,7 @@ public class MusicControls extends CordovaPlugin {
 					//album
 					metadataBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM, infos.album);
 
-					Bitmap art = getBitmapCover(infos.cover);
+					Bitmap art = BitmapUtils.resizeForNotification(BitmapUtils.getBitmap(cordovaActivity, infos.cover));
 					if(art != null){
 						metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, art);
 						metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, art);
@@ -163,10 +150,11 @@ public class MusicControls extends CordovaPlugin {
 
 					mediaSessionCompat.setMetadata(metadataBuilder.build());
 
-					if(infos.isPlaying)
+					if (infos.isPlaying) {
 						setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
-					else
+					} else {
 						setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
+					}
 
 					callbackContext.success("success");
 				}
@@ -177,11 +165,12 @@ public class MusicControls extends CordovaPlugin {
 			final boolean isPlaying = params.getBoolean("isPlaying");
 			this.notification.updateIsPlaying(isPlaying);
 			
-			if(isPlaying)
+			if (isPlaying) {
 				setMediaPlaybackState(PlaybackStateCompat.STATE_PLAYING);
-			else
+			} else {
 				setMediaPlaybackState(PlaybackStateCompat.STATE_PAUSED);
-			
+			}
+	
 			callbackContext.success("success");
 		}
 		else if (action.equals("updateDismissable")){
@@ -199,7 +188,7 @@ public class MusicControls extends CordovaPlugin {
 			this.registerMediaButtonEvent();
       			this.cordova.getThreadPool().execute(new Runnable() {
 				public void run() {
-          				mMediaSessionCallback.setCallback(callbackContext);
+      				mMediaSessionCallback.setCallback(callbackContext);
 					mMessageReceiver.setCallback(callbackContext);
 				}
 			});
@@ -222,7 +211,7 @@ public class MusicControls extends CordovaPlugin {
 	}
 	private void setMediaPlaybackState(int state) {
 		PlaybackStateCompat.Builder playbackstateBuilder = new PlaybackStateCompat.Builder();
-		if( state == PlaybackStateCompat.STATE_PLAYING ) {
+		if (state == PlaybackStateCompat.STATE_PLAYING ) {
 			playbackstateBuilder.setActions(PlaybackStateCompat.ACTION_PLAY_PAUSE | PlaybackStateCompat.ACTION_PAUSE | PlaybackStateCompat.ACTION_SKIP_TO_NEXT | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS |
 				PlaybackStateCompat.ACTION_PLAY_FROM_MEDIA_ID |
 				PlaybackStateCompat.ACTION_PLAY_FROM_SEARCH);
@@ -234,62 +223,5 @@ public class MusicControls extends CordovaPlugin {
 			playbackstateBuilder.setState(state, PlaybackStateCompat.PLAYBACK_POSITION_UNKNOWN, 0);
 		}
 		this.mediaSessionCompat.setPlaybackState(playbackstateBuilder.build());
-	}
-	
-	// Get image from url
-	private Bitmap getBitmapCover(String coverURL){
-		try{
-			if(coverURL.matches("^(https?|ftp)://.*$"))
-				// Remote image
-				return getBitmapFromURL(coverURL);
-			else {
-				// Local image
-				return getBitmapFromLocal(coverURL);
-			}
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			return null;
-		}
-	}
-
-	// get Local image
-	private Bitmap getBitmapFromLocal(String localURL){
-		try {
-			Uri uri = Uri.parse(localURL);
-			File file = new File(uri.getPath());
-			FileInputStream fileStream = new FileInputStream(file);
-			BufferedInputStream buf = new BufferedInputStream(fileStream);
-			Bitmap myBitmap = BitmapFactory.decodeStream(buf);
-			buf.close();
-			return myBitmap;
-		} catch (Exception ex) {
-			try {
-				InputStream fileStream = cordovaActivity.getAssets().open("www/" + localURL);
-				BufferedInputStream buf = new BufferedInputStream(fileStream);
-				Bitmap myBitmap = BitmapFactory.decodeStream(buf);
-				buf.close();
-				return myBitmap;
-			} catch (Exception ex2) {
-				ex.printStackTrace();
-				ex2.printStackTrace();
-				return null;
-			}
-		}
-	}
-
-	// get Remote image
-	private Bitmap getBitmapFromURL(String strURL) {
-		try {
-			URL url = new URL(strURL);
-			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-			connection.setDoInput(true);
-			connection.connect();
-			InputStream input = connection.getInputStream();
-			Bitmap myBitmap = BitmapFactory.decodeStream(input);
-			return myBitmap;
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			return null;
-		}
 	}
 }

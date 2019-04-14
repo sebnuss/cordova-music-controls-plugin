@@ -2,15 +2,6 @@ package com.homerours.musiccontrols;
 
 import org.apache.cordova.CordovaInterface;
 
-
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.File;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.util.Random;
-
 import android.util.Log;
 import android.R;
 import android.content.Context;
@@ -21,9 +12,7 @@ import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Build;
-import android.graphics.BitmapFactory;
 import android.graphics.Bitmap;
-import android.net.Uri;
 
 import android.app.NotificationChannel;
 
@@ -51,7 +40,7 @@ public class MusicControlsNotification {
 			CharSequence name = "cordova-music-controls-plugin";
 			// The user-visible description of the channel.
 			String description = "cordova-music-controls-plugin notification";
-			NotificationChannel channel = new NotificationChannel(this.CHANNEL_ID, name, NotificationManager.IMPORTANCE_LOW);
+			NotificationChannel channel = new NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_LOW);
 			// Configure the notification channel.
 			channel.setDescription(description);
 			this.notificationManager.createNotificationChannel(channel);
@@ -66,6 +55,7 @@ public class MusicControlsNotification {
 		}
 		this.infos = newInfos;
 		this.notificationManager.notify(this.notificationID, createNotification());
+		
 	}
 
 	// Toggle the play/pause button
@@ -86,58 +76,7 @@ public class MusicControlsNotification {
 
 	// Get image from url
 	private void getBitmapCover(String coverURL) {
-		try{
-			if(coverURL.matches("^(https?|ftp)://.*$"))
-				// Remote image
-				this.bitmapCover = getBitmapFromURL(coverURL);
-			else{
-				// Local image
-				this.bitmapCover = getBitmapFromLocal(coverURL);
-			}
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-	}
-
-	// get Local image
-	private Bitmap getBitmapFromLocal(String localURL) {
-		try {
-			Uri uri = Uri.parse(localURL);
-			File file = new File(uri.getPath());
-			FileInputStream fileStream = new FileInputStream(file);
-			BufferedInputStream buf = new BufferedInputStream(fileStream);
-			Bitmap myBitmap = BitmapFactory.decodeStream(buf);
-			buf.close();
-			return myBitmap;
-		} catch (Exception ex) {
-			try {
-				InputStream fileStream = cordovaActivity.getAssets().open("www/" + localURL);
-				BufferedInputStream buf = new BufferedInputStream(fileStream);
-				Bitmap myBitmap = BitmapFactory.decodeStream(buf);
-				buf.close();
-				return myBitmap;
-			} catch (Exception ex2) {
-				ex.printStackTrace();
-				ex2.printStackTrace();
-				return null;
-			}
-		}
-	}
-
-	// get Remote image
-	private Bitmap getBitmapFromURL(String strURL) {
-		try {
-			URL url = new URL(strURL);
-			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-			connection.setDoInput(true);
-			connection.connect();
-			InputStream input = connection.getInputStream();
-			Bitmap myBitmap = BitmapFactory.decodeStream(input);
-			return myBitmap;
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			return null;
-		}
+		this.bitmapCover = BitmapUtils.resizeForNotification(BitmapUtils.getBitmap(this.cordovaActivity, coverURL));
 	}
 
 	private Notification createNotification() {
